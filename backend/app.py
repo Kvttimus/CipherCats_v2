@@ -46,6 +46,7 @@ except Exception as e:
     raise
 
 JWT_SECRET = os.environ["SUPABASE_JWT_SECRET"]
+LEEWAY_SECONDS = 60
 
 # Get userId from JWT
 def getUserIdFromBearer():
@@ -58,7 +59,8 @@ def getUserIdFromBearer():
             token,
             JWT_SECRET,
             algorithms=["HS256"],
-            options={"verify_aud": False}
+            options={"verify_aud": False},
+            leeway=LEEWAY_SECONDS
         )
         return payload.get("sub")
     except jwt.ExpiredSignatureError:
@@ -89,6 +91,25 @@ def internal_error(error):
 @app.get("/")
 def root():
     return jsonify({"ok": True, "routes": ["/health", "/labs/<key>", "/submissions"]})
+
+# Fetch all labs
+@app.get("/labs")
+def listLabs():
+    userId = getUserIdFromBearer()
+    if not userId:
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        res = (
+            supabase.table("labs")
+            .select("key,title,prompt")
+            .order("id", desc=False)
+            .limit(100)
+            .execute()
+        )
+        return jsonify(res.data or [])
+    except Exception as e:
+        logger.exception(f"Error listing labs: {e}")
+        return jsonify({"error": "internal server error"}), 500
 
 # Fetch a lab
 @app.get("/labs/<key>")

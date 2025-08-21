@@ -3,6 +3,8 @@ import { BrowserRouter } from "react-router-dom";
 import { Providers } from "@/app/providers";
 import App from "@/app/App";
 import "@/app/index.css";
+import "@/styles/theme.css";
+
 
 createRoot(document.getElementById("root")!).render(
     <BrowserRouter>

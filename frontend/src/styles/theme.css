@@ -1,0 +1,50 @@
+:root {
+    /* brand + accents */
+    --brand: 188 100% 50%;
+    --accent: 280 100% 65%;
+    --warn: 46 100% 54%;
+
+    /* surfaces & text */
+    --bg: 222 30% 5%;
+    --panel: 222 30% 9%;
+    --muted: 222 14% 13%;
+    --fg: 210 15% 96%;
+    --fg-muted: 214 12% 72%;
+
+    --radius: 1rem;
+    /* 16px */
+    --radius-lg: 1.25rem;
+    /* 20px */
+    --ring: 0 0% 100%;
+}
+
+html {
+    color-scheme: dark;
+}
+
+body {
+    background: hsl(var(--bg));
+    color: hsl(var(--fg));
+}
+
+/* helper “surfaces” */
+.surface {
+    background: hsl(var(--panel)/.9);
+    border: 1px solid hsl(222 18% 20% / .75);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.surface-muted {
+    background: hsl(var(--muted)/.6);
+    border: 1px solid hsla(220, 4%, 14%, 0.6);
+    border-radius: var(--radius);
+}
+
+.text-muted {
+    color: hsl(var(--fg-muted));
+}
+
+.text-brand {
+    color: hsl(var(--brand));
+}   
