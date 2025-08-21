@@ -1,9 +1,9 @@
-import { Link } from "react-router-dom";
-import { useLabs } from "@/features/labs/hooks/useLabs";
 import { useAuth } from "@/context/AuthContext";
+import { usePaths, PathCard } from "@/features/paths";
 
 export default function DashboardPage() {
-    const { data: labs, loading, error } = useLabs();
+    // const { data: labs, loading, error } = useLabs();
+    const { data: paths = [], loading, error } = usePaths();
     const { signOut } = useAuth();
 
     return (
@@ -18,19 +18,13 @@ export default function DashboardPage() {
                 </button>
             </div>
 
-            <h2 className="text-lg font-semibold">Labs</h2>
-            {loading && <div className="text-gray-600">Loading labs…</div>}
+            <h2 className="text-lg font-semibold">Paths</h2>
+            {loading && <div className="text-gray-600">Loading paths…</div>}
             {error && <div className="text-red-600">Error: {error}</div>}
             {!loading && !error && (
-                <ul className="space-y-2">
-                    {labs.map((l) => (
-                        <li key={l.key} className="p-3 rounded border" style={{ borderColor: "var(--border)" }}>
-                            <div className="font-medium">{l.title}</div>
-                            <div className="text-sm" style={{ color: "var(--muted)" }}>{l.prompt}</div>
-                            <Link className="underline text-sm" to={`/labs/${l.key}`}>Open</Link>
-                        </li>
-                    ))}
-                </ul>
+                <div className="grid sm:grid-cols-2 gap-4">
+                    {paths.map((p) => (<PathCard key={p.slug} path={p} />))}
+                </div>
             )}
         </div>
     );

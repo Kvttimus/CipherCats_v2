@@ -92,6 +92,54 @@ def internal_error(error):
 def root():
     return jsonify({"ok": True, "routes": ["/health", "/labs/<key>", "/submissions"]})
 
+# List paths
+@app.get("/paths")
+def listPaths():
+    userId = getUserIdFromBearer()
+    if not userId:
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        res = (
+            supabase.table("paths")
+                .select("id, slug, title, description, difficulty")
+                .order("id", desc=False)
+                .execute()
+        )
+        return jsonify(res.data or [])
+    except Exception as e:
+        logger.exception(f"Error listing paths: {e}")
+        return jsonify({"error": "internal server error"}), 500
+    
+# List labs in path
+@app.get("/paths/<slug>/labs")
+def listPathLabs(slug):
+    userId = getUserIdFromBearer()
+    if not userId:
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        p = (supabase.table("paths")
+            .select("id, slug, title, description, difficulty")
+            .eq("slug", slug)
+            .limit(1)
+            .execute()
+        )
+        rows = p.data or []
+        if not rows:
+            return jsonify({"error": "path not found"}), 404
+        path = rows[0]
+
+        labs = (supabase.table("labs")
+                .select("key, title, prompt, position")
+                .eq("path_id", path["id"])
+                .order("position", desc=False)
+                .order("id", desc=False)
+                .execute()
+        )
+        return jsonify({"path": path, "labs": labs.data or []})
+    except Exception as e:
+        logger.exception(f"Error listing labs for path {slug}: {e}")
+        return jsonify({"error": "internal server error"}), 500
+
 # Fetch all labs
 @app.get("/labs")
 def listLabs():

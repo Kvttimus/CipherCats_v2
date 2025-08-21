@@ -10,7 +10,7 @@ export default function Header() {
                 </Link>
                 <nav className="ml-auto flex items-center gap-4">
                     <NavLink to="/dashboard" className={link}>Dashboard</NavLink>
-                    <NavLink to="/labs/codebreaker-1" className={link}>Labs</NavLink>
+                    {/* <NavLink to="/labs/codebreaker-1" className={link}>Labs</NavLink> */}
                 </nav>
             </div>
         </header>
