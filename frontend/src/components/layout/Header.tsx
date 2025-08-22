@@ -9,10 +9,8 @@ export default function Header() {
                     <span className="text-brand">Cipher</span>Cats
                 </Link>
                 <nav className="ml-auto flex items-center gap-4">
-                    {/* <NavLink to="/dashboard" className={link}>Dashboard</NavLink> */}
-                    <Link to="/dashboard">Dashboard</Link>
-                    {/* <NavLink to="/profile" className={link}>Profile</NavLink> */}
-                    <Link to="/profile">Profile</Link>
+                    <NavLink to="/dashboard" className={link}>Dashboard</NavLink>
+                    <NavLink to="/profile" className={link}>Profile</NavLink>
                 </nav>
             </div>
         </header>
