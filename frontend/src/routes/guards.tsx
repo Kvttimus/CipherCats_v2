@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 
 export function RequireAuth() {
     const { session, loading } = useAuth();
+
     if (loading) return null;  // hold until session restored
     return session ? <Outlet /> : <Navigate to="/sign-in" replace />;
 }
