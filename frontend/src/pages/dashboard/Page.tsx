@@ -1,15 +1,23 @@
 import { useAuth } from "@/context/AuthContext";
 import { usePaths, PathCard } from "@/features/paths";
+import { useProfile } from "@/features/settings/hooks/useProfile";
 
 export default function DashboardPage() {
     // const { data: labs, loading, error } = useLabs();
     const { data: paths = [], loading, error } = usePaths();
-    const { signOut } = useAuth();
+    const { signOut, session } = useAuth();
+    const { data: profile, loading: loadingProfile } = useProfile();
+
+    const name =
+        (profile?.display_name?.trim() || "") ||
+        (session?.user?.user_metadata?.full_name as string | undefined) ||
+        (session?.user?.email ? session.user.email.split("@")[0] : "") ||
+        "there";
 
     return (
         <div className="max-w-2xl mx-auto p-6 space-y-6">
             <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-semibold">Dashboard</h1>
+                <h1 className="text-2xl font-semibold">{loadingProfile ? "Loading…" : `Welcome, ${name}`}</h1>
                 <button
                     className="text-sm underline hover:no-underline"
                     onClick={signOut}

@@ -32,7 +32,15 @@ prodOrigins = os.environ.get("ALLOWED_ORIGINS")
 if prodOrigins:
     ALLOWED_ORIGINS.extend(prodOrigins.split(","))
 
-CORS(app, supports_credentials=True, origins=ALLOWED_ORIGINS)
+CORS(
+    app,
+    supports_credentials=False,  # Only enable if needed
+    origins=ALLOWED_ORIGINS,     # Single source of truth
+    methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+    expose_headers=["Content-Type"]
+)
+
 
 # Builds a supabase client using Service Role key (full DB privileges) - DONT RUN IN BROWSER
 try:
@@ -47,6 +55,7 @@ except Exception as e:
 
 JWT_SECRET = os.environ["SUPABASE_JWT_SECRET"]
 LEEWAY_SECONDS = 60
+
 
 # Get userId from JWT
 def getUserIdFromBearer():
@@ -73,6 +82,7 @@ def getUserIdFromBearer():
         logger.error(f"JWT decode error: {e}")
         return None 
     
+
 # Get current time in UTC
 def getUtcTimestamp():
     return datetime.now(timezone.utc).isoformat()
@@ -91,6 +101,87 @@ def internal_error(error):
 @app.get("/")
 def root():
     return jsonify({"ok": True, "routes": ["/health", "/labs/<key>", "/submissions"]})
+
+# Get profile
+@app.get("/profile")
+def getProfile():
+    userId = getUserIdFromBearer()
+    if not userId:
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        res = (supabase.table("profiles")
+            .select("user_id, display_name, avatar_url, theme, updated_at")
+            .eq("user_id", userId)
+            .limit(1)
+            .execute())
+        
+        if res.data:
+            return jsonify(res.data[0])
+
+        try:
+            insertRes = supabase.table("profiles").insert({
+                "user_id": userId,
+                "display_name": "",
+                "avatar_url": "",
+                "theme": "system"
+            }).execute()
+            return jsonify(insertRes.data[0])
+        except Exception as insertError:
+            if "duplicate" in str(insertError).lower():
+                res = (supabase.table("profiles")
+                    .select("user_id, display_name, avatar_url, theme, updated_at")
+                    .eq("user_id", userId)
+                    .limit(1)
+                    .execute())
+                if res.data:
+                    return jsonify(res.data[0])
+            raise insertError
+    except Exception as e:
+        logger.error(f"Error fetching/creating profile for user {userId}: {e}")
+        return jsonify({"error": "internal server error"}), 500
+
+@app.patch("/profile")
+def updateProfile():
+    userId = getUserIdFromBearer()
+    if not userId:
+        return jsonify({"error": "unauthorized"}), 401
+    if not request.is_json:
+        return jsonify({"error": "request must be JSON"}), 400
+
+    body = request.get_json() or {}
+
+    try:
+        displayName = str(body.get("display_name", "")).strip()
+        avatarUrl = str(body.get("avatar_url", "")).strip()
+        theme = str(body.get("theme", "system")).strip()
+
+        if len(displayName) > 100:
+            return jsonify({"error": "display name too long"}), 400
+        if avatarUrl and len(avatarUrl) > 500:
+            return jsonify({"error": "avatar URL too long"}), 400
+        if avatarUrl and not (avatarUrl.startswith("http://") or avatarUrl.startswith("https://")):
+            return jsonify({"error": "invalid avatar URL"}), 400
+        if theme not in ("system", "light", "dark"):
+            return jsonify({"error": "invalid theme"}), 400
+
+        result = supabase.table("profiles").upsert(
+            {
+                "user_id": userId,
+                "display_name": displayName,
+                "avatar_url": avatarUrl,
+                "theme": theme
+            },
+            on_conflict="user_id"
+        ).execute()
+
+        if not result.data:
+            return jsonify({"error": "failed to update profile"}), 500
+        
+        return jsonify(result.data[0])
+
+    except Exception as e:
+        logger.error(f"Error updating profile for user {userId}: {e}")
+        return jsonify({"error": "internal server error"}), 500
 
 # List paths
 @app.get("/paths")

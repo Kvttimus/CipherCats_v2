@@ -6,6 +6,7 @@ import { RequireAuth, RedirectIfAuthed } from "@/routes/guards";
 import AppShell from "@/components/layout/AppShell";
 import AuthPage from "@/pages/sign-in/Page";
 import DashboardPage from "@/pages/dashboard/Page";
+import ProfilePage from "@/pages/profile/Page";
 import PathPage from "@/pages/path/Page";
 import LabPage from "@/pages/lab/Page";
 
@@ -22,6 +23,7 @@ export function AppRoutes() {
                 {/* Private */}
                 <Route element={<RequireAuth />}>
                     <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/paths/:slug" element={<PathPage />} />
                     <Route path="/labs/:labKey" element={<LabPage />} />
                 </Route>
