@@ -11,6 +11,7 @@ import ProfilePage from "@/pages/profile/Page";
 import PathPage from "@/pages/path/Page";
 import LabPage from "@/pages/lab/Page";
 import NotFoundPage from "@/pages/not-found/Page";
+import ResetPasswordPage from "@/pages/sign-in/reset-password/Page";
 
 export function AppRoutes() {
     return (
@@ -21,6 +22,8 @@ export function AppRoutes() {
                 <Route element={<RedirectIfAuthed />}>
                     <Route path="/sign-in" element={<AuthPage />} />
                 </Route>
+                
+                <Route path="/sign-in/reset-password" element={<ResetPasswordPage />} />
             </Route>
 
             <Route element={<AppShell />}>

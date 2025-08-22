@@ -12,7 +12,13 @@ const Ctx = createContext<{
     signOut: async () => {} 
 });
 
-export const useAuth = () => useContext(Ctx);
+export const useAuth = () => {
+    const context = useContext(Ctx);
+    if (!context) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
@@ -21,10 +27,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         let live = true;
         (async () => {
-            const { data } = await supabase.auth.getSession();
-            if (!live) return;
-            setSession(data.session ?? null);
-            setLoading(false);
+            try {
+                const { data, error } = await supabase.auth.getSession();
+                if (error) throw error;
+                if (!live) return;
+                setSession(data.session ?? null);
+            } catch (error) {
+                console.error('Auth initialization error:', error);
+            } finally {
+                if (live) setLoading(false);
+            }
         })();
         const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
         return () => { live = false; sub.subscription.unsubscribe(); };
@@ -32,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const signOut = async () => {
         await supabase.auth.signOut();
+        setSession(null);
     };
 
     return <Ctx.Provider value={{ session, loading, signOut }}>{children}</Ctx.Provider>;

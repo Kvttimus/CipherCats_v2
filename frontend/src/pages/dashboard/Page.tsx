@@ -29,7 +29,7 @@ export default function DashboardPage() {
             {loading && <div className="text-gray-600">Loading paths…</div>}
             {error && <div className="text-red-600">Error: {error}</div>}
             {!loading && !error && (
-                <div className="grid sm:grid-cols-2 gap-4">
+                <div className="grid sm:grid-cols-1 gap-4">
                     {paths.map((p) => (<PathCard key={p.slug} path={p} />))}
                 </div>
             )}
