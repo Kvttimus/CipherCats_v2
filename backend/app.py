@@ -32,7 +32,15 @@ prodOrigins = os.environ.get("ALLOWED_ORIGINS")
 if prodOrigins:
     ALLOWED_ORIGINS.extend(prodOrigins.split(","))
 
-CORS(app, supports_credentials=True, origins=ALLOWED_ORIGINS)
+CORS(
+    app,
+    supports_credentials=False,  # Only enable if needed
+    origins=ALLOWED_ORIGINS,     # Single source of truth
+    methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+    expose_headers=["Content-Type"]
+)
+
 
 # Builds a supabase client using Service Role key (full DB privileges) - DONT RUN IN BROWSER
 try:
@@ -46,6 +54,8 @@ except Exception as e:
     raise
 
 JWT_SECRET = os.environ["SUPABASE_JWT_SECRET"]
+LEEWAY_SECONDS = 60
+
 
 # Get userId from JWT
 def getUserIdFromBearer():
@@ -58,7 +68,8 @@ def getUserIdFromBearer():
             token,
             JWT_SECRET,
             algorithms=["HS256"],
-            options={"verify_aud": False}
+            options={"verify_aud": False},
+            leeway=LEEWAY_SECONDS
         )
         return payload.get("sub")
     except jwt.ExpiredSignatureError:
@@ -71,6 +82,7 @@ def getUserIdFromBearer():
         logger.error(f"JWT decode error: {e}")
         return None 
     
+
 # Get current time in UTC
 def getUtcTimestamp():
     return datetime.now(timezone.utc).isoformat()
@@ -89,6 +101,154 @@ def internal_error(error):
 @app.get("/")
 def root():
     return jsonify({"ok": True, "routes": ["/health", "/labs/<key>", "/submissions"]})
+
+# Get profile
+@app.get("/profile")
+def getProfile():
+    userId = getUserIdFromBearer()
+    if not userId:
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        res = (supabase.table("profiles")
+            .select("user_id, display_name, avatar_url, theme, updated_at")
+            .eq("user_id", userId)
+            .limit(1)
+            .execute())
+        
+        if res.data:
+            return jsonify(res.data[0])
+
+        try:
+            insertRes = supabase.table("profiles").insert({
+                "user_id": userId,
+                "display_name": "",
+                "avatar_url": "",
+                "theme": "system"
+            }).execute()
+            return jsonify(insertRes.data[0])
+        except Exception as insertError:
+            if "duplicate" in str(insertError).lower():
+                res = (supabase.table("profiles")
+                    .select("user_id, display_name, avatar_url, theme, updated_at")
+                    .eq("user_id", userId)
+                    .limit(1)
+                    .execute())
+                if res.data:
+                    return jsonify(res.data[0])
+            raise insertError
+    except Exception as e:
+        logger.error(f"Error fetching/creating profile for user {userId}: {e}")
+        return jsonify({"error": "internal server error"}), 500
+
+@app.patch("/profile")
+def updateProfile():
+    userId = getUserIdFromBearer()
+    if not userId:
+        return jsonify({"error": "unauthorized"}), 401
+    if not request.is_json:
+        return jsonify({"error": "request must be JSON"}), 400
+
+    body = request.get_json() or {}
+
+    try:
+        displayName = str(body.get("display_name", "")).strip()
+        avatarUrl = str(body.get("avatar_url", "")).strip()
+        theme = str(body.get("theme", "system")).strip()
+
+        if len(displayName) > 100:
+            return jsonify({"error": "display name too long"}), 400
+        if avatarUrl and len(avatarUrl) > 500:
+            return jsonify({"error": "avatar URL too long"}), 400
+        if avatarUrl and not (avatarUrl.startswith("http://") or avatarUrl.startswith("https://")):
+            return jsonify({"error": "invalid avatar URL"}), 400
+        if theme not in ("system", "light", "dark"):
+            return jsonify({"error": "invalid theme"}), 400
+
+        result = supabase.table("profiles").upsert(
+            {
+                "user_id": userId,
+                "display_name": displayName,
+                "avatar_url": avatarUrl,
+                "theme": theme
+            },
+            on_conflict="user_id"
+        ).execute()
+
+        if not result.data:
+            return jsonify({"error": "failed to update profile"}), 500
+        
+        return jsonify(result.data[0])
+
+    except Exception as e:
+        logger.error(f"Error updating profile for user {userId}: {e}")
+        return jsonify({"error": "internal server error"}), 500
+
+# List paths
+@app.get("/paths")
+def listPaths():
+    userId = getUserIdFromBearer()
+    if not userId:
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        res = (
+            supabase.table("paths")
+                .select("id, slug, title, description, difficulty")
+                .order("id", desc=False)
+                .execute()
+        )
+        return jsonify(res.data or [])
+    except Exception as e:
+        logger.exception(f"Error listing paths: {e}")
+        return jsonify({"error": "internal server error"}), 500
+    
+# List labs in path
+@app.get("/paths/<slug>/labs")
+def listPathLabs(slug):
+    userId = getUserIdFromBearer()
+    if not userId:
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        p = (supabase.table("paths")
+            .select("id, slug, title, description, difficulty")
+            .eq("slug", slug)
+            .limit(1)
+            .execute()
+        )
+        rows = p.data or []
+        if not rows:
+            return jsonify({"error": "path not found"}), 404
+        path = rows[0]
+
+        labs = (supabase.table("labs")
+                .select("key, title, prompt, position")
+                .eq("path_id", path["id"])
+                .order("position", desc=False)
+                .order("id", desc=False)
+                .execute()
+        )
+        return jsonify({"path": path, "labs": labs.data or []})
+    except Exception as e:
+        logger.exception(f"Error listing labs for path {slug}: {e}")
+        return jsonify({"error": "internal server error"}), 500
+
+# Fetch all labs
+@app.get("/labs")
+def listLabs():
+    userId = getUserIdFromBearer()
+    if not userId:
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        res = (
+            supabase.table("labs")
+            .select("key,title,prompt")
+            .order("id", desc=False)
+            .limit(100)
+            .execute()
+        )
+        return jsonify(res.data or [])
+    except Exception as e:
+        logger.exception(f"Error listing labs: {e}")
+        return jsonify({"error": "internal server error"}), 500
 
 # Fetch a lab
 @app.get("/labs/<key>")
