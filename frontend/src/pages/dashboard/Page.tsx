@@ -3,7 +3,6 @@ import { usePaths, PathCard } from "@/features/paths";
 import { useProfile } from "@/features/settings/hooks/useProfile";
 
 export default function DashboardPage() {
-    // const { data: labs, loading, error } = useLabs();
     const { data: paths = [], loading, error } = usePaths();
     const { signOut, session } = useAuth();
     const { data: profile, loading: loadingProfile } = useProfile();

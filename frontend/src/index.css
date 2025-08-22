@@ -1,7 +1,7 @@
 @import "tailwindcss";
-/* optional v4 theming: 
-@theme { --font-sans: ui-sans-serif, system-ui; } 
-*/
+/* optional v4 theming:  */
+/* @theme { --font-sans: ui-sans-serif, system-ui; }  */
+@theme { --front-sans: input-mono-condensed, system-ui; }
 
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -10,7 +10,7 @@
 
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: #14151C;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;

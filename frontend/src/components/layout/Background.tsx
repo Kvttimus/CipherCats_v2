@@ -10,11 +10,6 @@ export default function Background() {
                 </defs>
                 <rect width="100%" height="100%" fill="url(#grid)" />
             </svg>
-            {/* corner glows */}
-            {/* <div className="absolute -top-40 -left-40 h-[40rem] w-[40rem] rounded-full blur-3xl opacity-20"
-                style={{ background: "radial-gradient(circle, hsl(188 100% 50% / .35), transparent 60%)" }} />
-            <div className="absolute -bottom-40 -right-40 h-[40rem] w-[40rem] rounded-full blur-3xl opacity-20"
-                style={{ background: "radial-gradient(circle, hsl(280 100% 65% / .35), transparent 60%)" }} /> */}
         </div>
     );
 }
