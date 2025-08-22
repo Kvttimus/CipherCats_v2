@@ -11,19 +11,55 @@ export default function ResetPasswordPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+
     const { signOut } = useAuth();
 
     const passwordMinLength = 8;
+
+    const isValidJWTFormat = (token: string): boolean => {
+        try {
+            return token.split('.').length === 3 && token.length > 20;
+        } catch {
+            return false;
+        }
+    };
+
+    const mapAuthErrorToMessage = (errorMessage: string): string => {
+        if (errorMessage.includes('same_password')) {
+            return "New password must be different from your current password.";
+        }
+        if (errorMessage.includes('invalid_credentials')) {
+            return "Reset session expired. Please request a new password reset link.";
+        }
+        if (errorMessage.includes('session_not_found')) {
+            return "Reset session not found. Please use the link from your email.";
+        }
+        return "Failed to update password. Please try again or request a new reset link.";
+    };
 
     // Handle the reset tokens from URL
     useEffect(() => {
         const handleAuthRedirect = async () => {
             try {
                 // First check if user already has a valid session
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+                if (sessionError) {
+                    console.error('Session error:', sessionError);
+                    setError("Authentication error. Please request a new password reset link.");
+                    return;
+                }
+
                 if (session) {
-                    console.log('User already authenticated');
-                    return; // User is ready to reset password
+                    // Verify this session has the right permissions for password reset
+                    const { data: user, error: userError } = await supabase.auth.getUser();
+                    if (userError || !user?.user) {
+                        setError("Invalid session. Please request a new password reset link.");
+                        return;
+                    }
+                    console.log('User authenticated and ready for password reset');
+                    return; // Ready to reset password
                 }
 
                 // Check hash parameters
@@ -33,12 +69,21 @@ export default function ResetPasswordPage() {
                 const errorParam = hashParams.get('error');
                 const errorDescription = hashParams.get('error_description');
 
+                if (window.location.hash) {
+                    window.history.replaceState(null, '', window.location.pathname);
+                }
+
                 // Handle errors from URL
                 if (errorParam) {
                     setError(`Reset failed: ${errorDescription || errorParam}`);
                     return;
                 }
 
+                if (accessToken && !isValidJWTFormat(accessToken)) {
+                    setError("Invalid reset link format. Please request a new password reset link.");
+                    return;
+                }
+                
                 // Try to set session with tokens
                 if (accessToken && refreshToken) {
                     const { error } = await supabase.auth.setSession({
@@ -47,9 +92,16 @@ export default function ResetPasswordPage() {
                     });
 
                     if (error) {
-                        console.error('Session error:', error);
-                        setError("Reset link expired or invalid. Please request a new one.");
-                    }
+                        console.error('Session setup failed:', error);
+                        // CRITICAL FIX: More specific error handling
+                        if (error.message.includes('expired')) {
+                            setError("Reset link has expired. Please request a new password reset link.");
+                        } else if (error.message.includes('invalid')) {
+                            setError("Invalid reset link. Please request a new password reset link.");
+                        } else {
+                            setError("Reset link is no longer valid. Please request a new password reset link.");
+                        }
+                    } 
                 } else {
                     // User came directly to page - provide helpful message
                     setError("Please use the reset link from your email to access this page.");
@@ -64,7 +116,6 @@ export default function ResetPasswordPage() {
     }, []);
 
     async function handleResetPassword(e: React.FormEvent<HTMLFormElement>) {
-        // await supabase.auth.signOut();
         e.preventDefault();
         setError(null);
         setLoading(true);
@@ -88,9 +139,12 @@ export default function ResetPasswordPage() {
             });
 
             if (error) {
-                setError(error.message);
+                const errorMessage = mapAuthErrorToMessage(error.message);
+                setError(errorMessage);
+                console.error('Password update failed:', error);
             } else {
                 setSuccess(true);
+                console.log('Password updated successfully');
                 // Redirect after success
                 setTimeout(() => {
                     window.location.href = routes.DASHBOARD;
@@ -114,7 +168,7 @@ export default function ResetPasswordPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-green-600 text-sm text-center">
-                            Your password has been successfully updated. Redirecting...
+                            Your password has been successfully updated. Redirecting to dashboard...
                         </div>
                     </CardContent>
                 </Card>
